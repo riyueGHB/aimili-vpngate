@@ -51,10 +51,15 @@ AimiliVPN 使用 Python 标准库管理 VPNGate 节点，提供节点获取与�
 <a id="quick-install"></a>
 ## 快速安装
 
-在 Linux VPS 上按[发行包安装步骤](#source-release)校验并安装。以 `root` 运行安装器，终端会输出本机 Web 地址和首次登录凭据。
+在启用了 TUN/TAP 的 Linux VPS 上执行下面一条命令，输入 **1** 安装系统版，或输入 **2** 使用已有 Docker Engine 和 Compose 插件安装容器版。
 
-> [!TIP]
-> 安装前请在 VPS 控制面板启用 TUN/TAP，并确认 `/dev/net/tun` 存在。Web 默认在回环地址监听 TCP `8787`，远程访问可通过 SSH 端口转发。
+```bash
+curl -fsSL https://github.com/OpenMili/aimili-vpngate/releases/latest/download/install.sh -o aimili.sh && sudo bash aimili.sh
+```
+
+安装器会显示完整登录地址、随机账号和密码。新面板监听 `0.0.0.0`，从 `8787` 起选择空闲端口。安全组只需向你的管理 IP 放行显示的 TCP 端口。HTTP/SOCKS5 代理默认绑定回环地址。
+
+**清理测试安装**：在同一目录执行 `sudo bash aimili.sh --purge`。这会删除本项目一键安装的实例、账号和节点数据。
 
 <a id="installation"></a>
 ## 完整安装
@@ -66,7 +71,7 @@ AimiliVPN 使用 Python 标准库管理 VPNGate 节点，提供节点获取与�
 - Windows 与 macOS 可作为代理客户端，但不能直接运行完整网关；Docker Desktop 也不等同于具备宿主机 TUN 能力的 Linux VPS。
 
 <a id="source-release"></a>
-### 方式一：一键源码安装
+### 方式一：手动安装源码发行包
 
 从 [GitHub Releases](https://github.com/OpenMili/aimili-vpngate/releases) 下载含新版安装器的发行包和同一发行版的 `sha256sums.txt`。在仅含这两个文件的目录中，以 `root` 核对后安装。首次部署需要先信任下载来源。
 
@@ -126,7 +131,7 @@ docker run -d \
   --cap-add NET_ADMIN \
   --cap-add NET_RAW \
   --device /dev/net/tun:/dev/net/tun \
-  -e UI_HOST=127.0.0.1 \
+  -e UI_HOST=0.0.0.0 \
   -e UI_PORT=8787 \
   -e LOCAL_PROXY_HOST=127.0.0.1 \
   -e LOCAL_PROXY_PORT=7928 \
@@ -156,7 +161,7 @@ docker compose up -d
 源码安装完成后，使用终端输出的地址访问：
 
 ```text
-http://127.0.0.1:8787/随机安全路径/
+http://服务器公网IP:面板端口/随机安全路径/
 ```
 
 忘记地址时执行 `ml status`；需要重设账号密码时执行 `ml password`。
@@ -167,11 +172,11 @@ http://127.0.0.1:8787/随机安全路径/
 docker exec aimilivpn cat /data/ui_bootstrap.json
 ```
 
-用该文件的 `secret_path`、`username` 和 `password` 登录。忘记后缀时读取 `ui_auth.json` 中的 `secret_path`。远程管理使用 SSH 转发。升级时请核对持久化配置的 `host`，旧安装可能依然监听全网卡。
+用该文件的 `secret_path`、`username` 和 `password` 登录。忘记后缀时读取 `ui_auth.json` 中的 `secret_path`。升级沿用原绑定地址和账号。面板对公网开放时，可用 HTTPS 反向代理保护登录流量。
 
 ### 2. 获取并连接节点
 
-1. 登录后台，等待首次节点加载完成，或点击“更新节点”。
+1. 打开安装器给出的地址并登录。面板会自动连接首个检测通过的节点，同时显示其余节点的检测进度。
 2. 按国家筛选节点，并使用“测试”检查本机实测延迟与可用性。
 3. 点击目标节点的“切换”；目标预检失败时，程序会尽量保留当前可用连接。
 4. 根据需要选择智能自动、固定国家或固定 IP 模式。
@@ -179,7 +184,7 @@ docker exec aimilivpn cat /data/ui_bootstrap.json
 
 官方接口失败时，程序会尝试 [GitHub Pages 备用订阅](https://openmili.github.io/aimili-vpngate/vpngate.csv)，随后读取本地快照。Actions 按每 15 分钟调度，镜像实际更新时间以[快照元数据](https://openmili.github.io/aimili-vpngate/vpngate.meta.json)中的 `generated_at_iso` 为准。GitHub 可能延迟执行定时任务。客户端会提示超过 30 分钟的快照，备用订阅里的节点仍需检测。
 
-节点列表每页显示 50 条。启动和自动维护会优先探测，默认每轮找到约 3 个可用候选后停止继续派发探测。要查看剩余候选，请清除列表筛选并翻页。需要更多预探测节点时，可以调高 `TARGET_VALID_NODES`。
+首次启动会同时获取订阅并验证一个启动候选。重启时优先复测上次使用的节点。每轮检测覆盖当前订阅范围内的全部候选，默认最多同时检测 5 个（`NODE_PROBE_WORKERS`）。每条结果会自动同步到网页。检测通过后即可切换，当前连接可在后台检测期间继续使用。可用节点在前，按国家代码分组，同国按实测延迟排列。检测中及待检测的节点居中，不可用节点排在最后。每页显示 50 条。
 
 ### 3. 在 VPS 本机使用代理
 

@@ -33,10 +33,13 @@ AimiliVPN は Python 標準ライブラリで VPNGate ノードを管理し、�
 <a id="quick-install"></a>
 ## クイックインストール
 
-Linux VPS では [リリースのインストール手順](#source-release) に従い、root でインストールしてください。Web のローカルアドレスと初回認証情報が表示されます。
+TUN/TAP が有効な Linux VPS で次のコマンドを実行します。**1** はシステム版、**2** は Docker 版です。Docker 版には Docker Engine と Compose が必要です。
 
-> [!TIP]
-> VPS の管理画面で TUN/TAP を有効にし、`/dev/net/tun` が存在することを確認してください。Web のデフォルトポートは TCP `8787` です。可能な限り自分の IP だけを許可してください。
+```bash
+curl -fsSL https://github.com/OpenMili/aimili-vpngate/releases/latest/download/install.sh -o aimili.sh && sudo bash aimili.sh
+```
+
+完了時にログイン URL、ユーザー名、パスワードが表示されます。パネルは `0.0.0.0` で待ち受け、`8787` から空いているポートを選びます。管理元 IP からそのポートへの接続を許可してください。`sudo bash aimili.sh --purge` でインストールとデータを削除できます。
 
 <a id="vps"></a>
 ## おすすめサービス
@@ -119,7 +122,7 @@ docker run -d \
   --cap-add NET_ADMIN \
   --cap-add NET_RAW \
   --device /dev/net/tun:/dev/net/tun \
-  -e UI_HOST=127.0.0.1 \
+  -e UI_HOST=0.0.0.0 \
   -e UI_PORT=8787 \
   -e LOCAL_PROXY_HOST=127.0.0.1 \
   -e LOCAL_PROXY_PORT=7928 \
@@ -149,7 +152,7 @@ docker compose up -d
 ソース版では、インストーラーが表示した URL を開きます。
 
 ```text
-http://127.0.0.1:8787/private_path/
+http://SERVER_IP:PANEL_PORT/private_path/
 ```
 
 パスワードハッシュは `ui_auth.json` に保存されます。Docker の初回認証情報ファイルは管理者のみ読み取れ、ログイン成功後に削除されます。
@@ -158,7 +161,7 @@ http://127.0.0.1:8787/private_path/
 docker exec aimilivpn cat /data/ui_bootstrap.json
 ```
 
-`secret_path`、`username`、`password` でログインします。後でパスを確認するときは `ui_auth.json` の `secret_path` を参照してください。リモート管理には SSH 転送を使い、更新後は保存された `host` を確認してください。
+`secret_path`、`username`、`password` でログインします。後でパスを確認するときは `ui_auth.json` の `secret_path` を参照してください。
 
 ### 2. ノードを取得して接続
 
